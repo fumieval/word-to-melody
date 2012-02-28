@@ -1,5 +1,5 @@
 {-
-単語の列から、隣接するアルファベットの対の出現頻度の分布を求める
+単語の列から、隣接するアルファベットの組み合わせの出現頻度の分布を求める
 -}
 import Control.Arrow
 import Control.Applicative
