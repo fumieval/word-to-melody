@@ -1,18 +1,18 @@
 # coding: utf-8
-"""
-隣接するアルファベットの対の出現頻度の分布から、よくある組み合わせは順次進行、あまりない組み合わせは跳躍分布になるようにアサインする
-"""
+
 import random
 import string
 from functools import partial
 import operator
 import math
-from itertools import starmap, imap, chain, combinations
+from itertools import starmap, imap, chain
 
-C = 0.7
-N = 512
-M = 0.005
-B = 13
+N = 512 #個体数
+C = 0.7 #交叉率
+M = 0.005 #突然変異率
+B = 13 #突然変異で変化する点数
+
+R = 0.8 #望ましい順次進行の割合
 
 def choice(population):
     return int(len(population) * random.random() ** 2)
@@ -33,7 +33,7 @@ def crossover_two(a, b):
  
     return c, d
     
-def genetic(pick, crossing, mutation, fitness, initial, threshold=None, limit=None):
+def genetic(pick, crossing, mutation, fitness, initial, threshold=None, limit=None, stable=None):
     generation = 0
     population = initial
     while True:
@@ -42,6 +42,9 @@ def genetic(pick, crossing, mutation, fitness, initial, threshold=None, limit=No
         if (threshold and fitnesses[0][1] >= threshold or
             limit and generation >= limit):
             return fitnesses[0]
+        
+        print fitnesses[0][1]
+        
         next_generation = []
         while len(next_generation) < len(population):
             v = random.random()
@@ -56,10 +59,27 @@ def genetic(pick, crossing, mutation, fitness, initial, threshold=None, limit=No
         population = next_generation
         generation += 1
 
-def fitness(dist, indiv):
-    result = 0
-    table = [abs(indiv[a] - indiv[b]) for (a, b), v in dist]
-    return sum(1 for i in starmap(operator.le, combinations(table, 2)) if i)
+def melody_value(rank, m):
+    it = iter(m)
+    j = next(it)
+    c = 0
+    d = 0
+    for i in m:
+        d = abs(i - j)
+        if 0 < d <= 1:
+            c += 1
+        elif 1 < d <= 6:
+            d += 1
+        elif d < 6: #1オクターブ以上の跳躍は禁則
+            return 0.0
+        j = i
+    if c + d:
+        return (1 - abs(c / (c + d) - R)) * (2.0 - rank / 2000.0) 
+    else:
+        return 0.0
+
+def fitness(words, indiv):
+    return sum(melody_value(i, imap(indiv.__getitem__, word)) for i, word in enumerate(words))
     
 def mutate(f, indiv):
     m = dict(indiv.iteritems())
@@ -68,18 +88,20 @@ def mutate(f, indiv):
     return m
 
 def create_mapping():
+    import sys
     dom = string.lowercase
-    cod_f = random.random
-    dist = eval(raw_input())
-    dist.sort(key=operator.itemgetter(1), reverse=True)
+    cod_f = lambda: random.randint(0, 10)
+    
+    words = map(str.lower, sys.stdin.read().splitlines())
     population = [dict((i, cod_f()) for i in dom) for _ in xrange(N)]
     indiv = genetic(choice,
                     crossover_uniform,
                     partial(mutate, cod_f),
-                    partial(fitness, dist),
+                    partial(fitness, words),
                     population,
-                    limit=50)
-    print indiv
+                    limit=25)
+    
+    print indiv[0].items()
 
 if __name__ == "__main__":
     create_mapping()
