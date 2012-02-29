@@ -7,11 +7,12 @@ import operator
 import math
 from itertools import starmap, imap, chain
 
-N = 512 #個体数
+N = 256 #個体数
 C = 0.7 #交叉率
 M = 0.005 #突然変異率
 B = 13 #突然変異で変化する点数
 
+L = 6 # 1オクターブの音の数
 R = 0.8 #望ましい順次進行の割合
 
 def choice(population):
@@ -60,21 +61,29 @@ def genetic(pick, crossing, mutation, fitness, initial, threshold=None, limit=No
         generation += 1
 
 def melody_value(rank, m):
-    it = iter(m)
+    xs = list(m)
+    it = iter(xs)
     j = next(it)
     c = 0
     d = 0
-    for i in m:
+    for i in it:
         d = abs(i - j)
         if 0 < d <= 1:
             c += 1
-        elif 1 < d <= 6:
+        elif 1 < d <= L:
             d += 1
-        elif d < 6: #1オクターブ以上の跳躍は禁則
+        elif d < L: #1オクターブ以上の跳躍は禁則
             return 0.0
         j = i
+    if xs[-1] % L == 0:
+        if len(xs) >= 2 and xs[-2] == xs[-1] - 1:
+            bonus = 2
+        else:
+            bonus = 1
+    else:
+        bonus = 0
     if c + d:
-        return (1 - abs(c / (c + d) - R)) * (2.0 - rank / 2000.0) 
+        return (1 - abs(c / (c + d) - R)) * (2.0 - rank / 2000.0) + bonus
     else:
         return 0.0
 
@@ -90,7 +99,7 @@ def mutate(f, indiv):
 def create_mapping():
     import sys
     dom = string.lowercase
-    cod_f = lambda: random.randint(0, 10)
+    cod_f = lambda: random.randint(-2, 8)
     
     words = map(str.lower, sys.stdin.read().splitlines())
     population = [dict((i, cod_f()) for i in dom) for _ in xrange(N)]
@@ -100,8 +109,9 @@ def create_mapping():
                     partial(fitness, words),
                     population,
                     limit=25)
-    
-    print indiv[0].items()
+    result = indiv[0].items()
+    result.sort(key=operator.itemgetter(1))
+    print result
 
 if __name__ == "__main__":
     create_mapping()

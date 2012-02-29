@@ -9,7 +9,7 @@ import qualified Haskore.Music as Music
 
 import Haskore.Interface.MIDI.Render
 
-mapping = M.fromList $ [('a', 5), ('c', 7), ('b', 7), ('e', 4), ('d', 10), ('g', 7), ('f', 6), ('i', 9), ('h', 0), ('k', 0), ('j', 10), ('m', 3), ('l', 8), ('o', 5), ('n', 3), ('q', 0), ('p', 6), ('s', 2), ('r', 8), ('u', 1), ('t', 10), ('w', 6), ('v', 0), ('y', 1), ('x', 0), ('z', 2)]
+mapping = M.fromList $ [('g', -2), ('m', -2), ('j', -1), ('l', -1), ('s', -1), ('v', -1), ('e', 0), ('o', 0), ('y', 0), ('u', 1), ('h', 2), ('r', 3), ('x', 3), ('z', 3), ('n', 4), ('a', 5), ('i', 5), ('d', 6), ('f', 6), ('k', 6), ('p', 6), ('t', 6), ('w', 6), ('c', 7), ('b', 8), ('q', 8)]
 
 scale = [c, ef, f, gf, g, bf] -- blues scale
 tone = uncurry (flip id) . (id *** (scale !!)) . flip divMod (length scale)
@@ -23,8 +23,7 @@ fromWord w = line
         l = length w
         (note, rest, m)
             | l >= 16 = (sn, snr, 16)
-            | l >= 8 = (en, enr, 8)
-            | otherwise = (qn, qnr, 4)
+            | otherwise = (en, enr, 8)
     
 make = MidiMusic.fromMelodyNullAttr MidiMusic.AcousticGrandPiano . (Music.changeTempo 3) . line
 
