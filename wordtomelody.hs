@@ -9,23 +9,22 @@ import qualified Haskore.Music as Music
 
 import Haskore.Interface.MIDI.Render
 
-mapping = M.fromList $ [('g', -2), ('m', -2), ('j', -1), ('l', -1), ('s', -1), ('v', -1), ('e', 0), ('o', 0), ('y', 0), ('u', 1), ('h', 2), ('r', 3), ('x', 3), ('z', 3), ('n', 4), ('a', 5), ('i', 5), ('d', 6), ('f', 6), ('k', 6), ('p', 6), ('t', 6), ('w', 6), ('c', 7), ('b', 8), ('q', 8)]
+mapping = M.fromList $ [('k', -2), ('m', -1), ('e', 0), ('g', 0), ('y', 0), ('c', 1), ('j', 1), ('n', 1), ('r', 1), ('z', 1), ('i', 2), ('o', 2), ('b', 3), ('v', 3), ('d', 4), ('q', 4), ('p', 4), ('t', 4), ('a', 5), ('u', 5), ('f', 6), ('l', 6), ('s', 6), ('w', 6), ('x', 6), ('h', 7)] -- 音の割り当て(一番大事！)
 
 scale = [c, ef, f, gf, g, bf] -- blues scale
 tone = uncurry (flip id) . (id *** (scale !!)) . flip divMod (length scale)
 
 padding n m = (m `div` n + 1) * n - m
 
-fromWord w = line
-    $ map (($()) . ($note) . tone . (mapping M.!) . toLower) w
-    -- ++ padding m l `replicate` rest
-    where
-        l = length w
-        (note, rest, m)
-            | l >= 16 = (sn, snr, 16)
-            | l >= 8 = (en, enr, 8)
-            | otherwise = (qn, qnr, 4)
-    
-make = MidiMusic.fromMelodyNullAttr MidiMusic.AcousticGrandPiano . (Music.changeTempo 3) . line
+fromInterval (x:xs@(x':xs')) -- 音階からノートを生成する
+    | x == x' = tone x qn () : fromInterval xs'
+    | otherwise = tone x en () : fromInterval xs
 
-main = playTimidity =<< make . map fromWord <$> words . unwords . lines <$> getContents
+fromInterval (x:[]) = [tone x en ()]
+fromInterval [] = []
+
+fromWord w = (line $ fromInterval $ map ((mapping M.!) . toLower) w) +:+ enr -- 文字列から旋律を生成する
+
+make = MidiMusic.fromMelodyNullAttr MidiMusic.AcousticGrandPiano . (Music.changeTempo 3) . transpose 12 . line
+
+main = playTimidity =<< make . map fromWord <$> concatMap words . lines <$> getContents
