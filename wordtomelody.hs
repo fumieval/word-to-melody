@@ -18,12 +18,13 @@ padding n m = (m `div` n + 1) * n - m
 
 fromWord w = line
     $ map (($()) . ($note) . tone . (mapping M.!) . toLower) w
-    ++ padding m l `replicate` rest
+    -- ++ padding m l `replicate` rest
     where
         l = length w
         (note, rest, m)
             | l >= 16 = (sn, snr, 16)
-            | otherwise = (en, enr, 8)
+            | l >= 8 = (en, enr, 8)
+            | otherwise = (qn, qnr, 4)
     
 make = MidiMusic.fromMelodyNullAttr MidiMusic.AcousticGrandPiano . (Music.changeTempo 3) . line
 
