@@ -3,38 +3,51 @@ import Control.Arrow
 import Control.Monad
 import Data.Array
 import Data.Char
+import Data.List
+import Data.Ratio
+import System.Environment (getArgs)
 
-import Haskore.Melody.Standard as Melody
-import Haskore.Music.GeneralMIDI as MidiMusic
+import qualified Haskore.Melody as Melody
+import qualified Haskore.Music.GeneralMIDI as MidiMusic
 import qualified Haskore.Music as Music
+import qualified Haskore.Basic.Pitch as Pitch
+import qualified Haskore.Basic.Duration as Duration
 
 import Haskore.Interface.MIDI.Render
 
-mapping = array ('a', 'z') [
-    ('a',2),('b',2),('c',-1),('d',-2),('e',-2),('f',3),('g',1)
-    ,('h',5),('i',-1),('j',4),('k',6),('l',3),('m',-2),('n',0)
-    ,('o',0),('p',0),('q',-2),('r',-2),('s',-2),('t',2),('u',1)
-    ,('v',-2),('w',-2),('x',0),('y',7),('z',-2)
-    ]
-
-scale = [c, ef, f, gf, g, bf] -- blues scale
-tone = uncurry (flip id) . (id *** (scale !!)) . flip divMod (length scale)
-
-padding n m = (m `div` n + 1) * n - m
-
-fromInterval (x:xs@(x':xs')) -- 音階からノートを生成する
-    | x == x' = tone x qn () : fromInterval xs'
-    | otherwise = tone x en () : fromInterval xs
-
-fromInterval (x:[]) = [tone x en ()]
-fromInterval [] = []
-
-fromWord w = (line $ fromInterval $ map ((mapping!) . toLower) w) +:+ enr -- 文字列から旋律を生成する
-
-make = MidiMusic.fromMelodyNullAttr MidiMusic.AcousticGrandPiano
-    . (Music.changeTempo 3) . transpose 12 . line
-
-main = lines <$> getContents >>= mapM_ save
+tone :: [Pitch.Class] -> Int -> Duration.T -> attr -> Melody.T attr
+tone scale n = Melody.note' (scale !! i) o
     where
-        save name = fileFromGeneralMIDIMusic (name ++ ".mid")
-            $ make $ map fromWord $ words name
+        (o, i) = divMod n $ length scale
+
+fromInterval :: [Pitch.Class] -> [Int] -> Music.T (Melody.Note ())
+fromInterval scale = group >>> map (head &&& length)
+    >>> map (tone scale *** (Duration.en*) . fromIntegral)
+    >>> map (uncurry id) >>> map ($()) >>> Music.line
+
+main = do
+    args <- getArgs
+    case args of
+         (method:profile:path:_) -> do
+             (tempo, trans) <- read <$> readFile profile
+             (scale, mapping) <- read <$> readFile path
+             phrases <- lines <$> getContents
+             let f = case method of {
+                "playWinNT" -> const $ void . playWinNT;
+                "playLinux" -> const $ void . playLinux;
+                "playAlsa" -> const $ void . playAlsa;
+                "playTimidity" -> const $ void . playTimidity;
+                "save" -> fileFromGeneralMIDIMusic . (++".mid") }
+             forM_ phrases $ \phrase -> f phrase
+                 $ make tempo trans scale mapping phrase
+         _ -> putStrLn "Usage: wordtomelody [playWinNT|playLinux|playAlsa|playTimidity|save] <profile> <mapping>"
+
+make tempo trans scale mapping = id
+    . MidiMusic.fromMelodyNullAttr MidiMusic.AcousticGrandPiano
+    . Music.changeTempo (Duration.fromRatio $ approxRational tempo 0.01)
+    . Music.transpose trans
+    . Music.line
+    . intersperse Music.enr
+    . map (fromInterval scale)
+    . map (map $ (array ('a', 'z') mapping!) . toLower)
+    . words
