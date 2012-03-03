@@ -64,7 +64,7 @@ main = do
          _ -> print "Usage: dist-map <param> <tone>"
     where
         compute f origin cod progbar c m e = scanl (>>=) (return (0, origin))
-            $ repeat $ progress *** next >>> uncurry ((<*>) . fmap (,))
+            $ repeat $ progress *** next >>> uncurry (liftA2 (,))
             where
                 progress = progbar &&& return . (+1) >>> uncurry (>>)
                 next = nextGeneration c m f
