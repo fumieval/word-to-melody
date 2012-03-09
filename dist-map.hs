@@ -38,8 +38,8 @@ valueMelody scale (x:xs) = f xs x (-1) (0, 0, 0)
                 f' = f xs x p 
         
         f [] p q (b, c, d) = case (p `mod` oct == 0, q == p - 1) of
-            (True, True) -> 2.0 * base
-            (True, False) -> 1.5 * base
+            (True, True) -> 1.2 * base
+            (True, False) -> 1.1 * base
             _ -> base
             where
                 base = -1 + (fromIntegral c / fromIntegral (c + d) - 0.8)
@@ -78,19 +78,19 @@ selectRanking e xs = (xs!!) . floor . (* fromIntegral (length xs))
     . exp . (*e) . log
     <$> randomRIO (0.0, 1.0)
 
-firstGeneration :: (Ix d, Random d, Random c) => (d,d) -> (c,c)
+firstGeneration :: (Ix d, Random d, Random c) => (d, d) -> (c, c)
     -> Int -> IO [Array d c]
 
 firstGeneration d c n = replicateM n $ listArray d
     <$> (rangeSize d `replicateM` randomRIO c)
             
-mutate :: (Ix d, Random d, Random c) => (d,d) -> (c,c)
+mutate :: (Ix d, Random d, Random c) => (d, d) -> (c, c)
     -> Array d c -> IO (Array d c)
 
 mutate dom cod = (<$> fmap pure point) . (//)
     where point = (,) <$> randomRIO dom <*> randomRIO cod
 
-crossoverUniform :: Ix d => (d,d)
+crossoverUniform :: Ix d => (d, d)
     -> (Array d e, Array d e) -> IO (Array d e, Array d e)
 
 crossoverUniform dom = elems *** elems >>> uncurry zip
@@ -98,14 +98,13 @@ crossoverUniform dom = elems *** elems >>> uncurry zip
     >>> sequence >>> fmap (unzip >>> listArray dom *** listArray dom)
     where ch = ([id, swap]!!) <$> randomRIO (0, 1)
 
-nextGeneration :: (Ix d, Random d, Random c)
-    => Float -> Float -- crossover rate, mutational rate
-   -> Ord a => (Array d c -> a) -- fitness
-   -> ([Array d c] -> IO (Array d c)) -- selector
-   -> ((Array d c, Array d c) -> IO (Array d c, Array d c)) -- crossover
-   -> (Array d c -> IO (Array d c)) -- mutation
-   -> [Array d c] -- current generation
-   -> IO [Array d c]
+nextGeneration :: Float -> Float -- crossover rate, mutational rate
+   -> Ord b => (a -> b) -- fitness
+   -> ([a] -> IO a) -- selector
+   -> ((a, a) -> IO (a, a)) -- crossover
+   -> (a -> IO a) -- mutation
+   -> [a] -- current generation
+   -> IO [a]
 
 nextGeneration rC rM f fS fC fM p = fmap (sortBy $ on compare f)
     $ collect (length p) $ repeat $ randomRIO (0.0, 1.0) >>= operate
@@ -115,7 +114,7 @@ nextGeneration rC rM f fS fC fM p = fmap (sortBy $ on compare f)
             | x < rM + rC = fmap qure $ (,) <$> fS p <*> fS p >>= fC
             | otherwise   = fmap pure $ fS p
             where qure (a, b) = [a, b] -- There are no meanings in 'qure'
-        
+                
         collect :: Int -> [IO [a]] -> IO [a]
         collect 0 _      = return []
         collect _ []     = return []
