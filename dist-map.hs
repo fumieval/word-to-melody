@@ -45,9 +45,9 @@ valueMelody scale (x:xs) = f xs x (-1) (0, 0, 0)
                 base = -1 + (fromIntegral c / fromIntegral (c + d) - 0.8)
 
 main = getArgs >>= \args -> case args of
-    (paramFile:toneFile:_) -> do
+    (paramFile:scaleFile:_) -> do
         (n, g, c, m, e) <- readIO =<< readFile paramFile
-        (scale, cod)    <- readIO =<< readFile toneFile
+        (scale, cod)    <- readIO =<< readFile scaleFile
         samples         <- lines <$> getContents
         
         let f = fitness scale $ map (map toLower) samples
@@ -61,7 +61,7 @@ main = getArgs >>= \args -> case args of
         progbar g
         print (scale, assocs result)
              
-    _ -> print "Usage: dist-map <param> <tone>"
+    _ -> print "Usage: dist-map <param> <scale>"
     
     where
         compute f origin cod progbar c m e = scanl (>>=) (return (0, origin))
