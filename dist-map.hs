@@ -1,6 +1,7 @@
+
+import Control.Monad (replicateM)
 import Control.Applicative
 import Control.Arrow
-import Control.Monad (replicateM)
 import Data.Function (on)
 import Data.List (sortBy)
 import Data.Array
@@ -8,7 +9,6 @@ import Data.Tuple (swap)
 import Data.Char (toLower)
 import System.Random
 import System.Environment (getArgs)
-
 import System.IO (stderr)
 import System.Time (getClockTime, diffClockTimes, TimeDiff, ClockTime
                     ,tdYear, tdMonth, tdHour, tdMin, tdSec)
@@ -73,17 +73,45 @@ main = getArgs >>= \args -> case args of
                     `id` crossoverUniform dom
                     `id` mutate dom cod
 
-selectRanking :: Float -> [a] -> IO a
-selectRanking e xs = (xs!!) . floor . (* fromIntegral (length xs))
-    . exp . (*e) . log
-    <$> randomRIO (0.0, 1.0)
-
 firstGeneration :: (Ix d, Random d, Random c) => (d, d) -> (c, c)
     -> Int -> IO [Array d c]
 
 firstGeneration d c n = replicateM n $ listArray d
     <$> (rangeSize d `replicateM` randomRIO c)
-            
+
+getProgressBar :: Integral a => String -> a -> IO (a -> IO ())
+getProgressBar title total = f <$> getClockTime
+    where        
+        f start n
+            | n >= total = display start 1.0 >> putStrLn ""
+            | otherwise = display start $ fromIntegral n / fromIntegral total
+
+        fmt = "\r%-15s %3d%% |%s| Time: %s"
+        len = 40
+
+        display :: RealFrac a => ClockTime -> a -> IO ()
+        display start p = getClockTime
+            >>= hPrintf stderr fmt title (floor $ p * 100 :: Int) bar
+            . showTime . flip diffClockTimes start
+            where
+                bar = let n = floor $ p * fromIntegral len in
+                          replicate n '#' ++ replicate (len - n) ' '
+        
+        showTime :: TimeDiff -> String
+        showTime elapsed = printf "%02d:%02d:%02d" hour minute second
+            where
+                minute  = tdMin elapsed
+                second  = tdSec elapsed
+                hour    = (tdYear elapsed * 365 * 24)
+                            * (tdMonth elapsed * 30)
+                            * (tdHour elapsed)
+						
+
+selectRanking :: Float -> [a] -> IO a
+selectRanking e xs = (xs!!) . floor . (* fromIntegral (length xs))
+    . exp . (*e) . log
+    <$> randomRIO (0.0, 1.0)
+
 mutate :: (Ix d, Random d, Random c) => (d, d) -> (c, c)
     -> Array d c -> IO (Array d c)
 
@@ -112,7 +140,7 @@ nextGeneration rC rM f fS fC fM p = fmap (sortBy $ on compare f)
         operate x
             | x < rM      = fmap pure $ fS p                  >>= fM
             | x < rM + rC = fmap qure $ (,) <$> fS p <*> fS p >>= fC
-            | otherwise   = fmap pure $ fS p
+            | otherwise   = fmap pure $ fS p				  >>= return
             where qure (a, b) = [a, b] -- There are no meanings in 'qure'
                 
         collect :: Int -> [IO [a]] -> IO [a]
@@ -120,30 +148,3 @@ nextGeneration rC rM f fS fC fM p = fmap (sortBy $ on compare f)
         collect _ []     = return []
         collect 1 (x:_)  = take 1 <$> x
         collect n (x:xs) = x >>= \v -> (v ++) <$> collect (n - length v) xs
-
-getProgressBar :: Integral a => String -> a -> IO (a -> IO ())
-getProgressBar title total = f <$> getClockTime
-    where        
-        f start n
-            | n >= total = display start 1.0 >> putStrLn ""
-            | otherwise = display start $ fromIntegral n / fromIntegral total
-
-        fmt = "\r%-15s %3d%% |%s| Time: %s"
-        len = 40
-
-        display :: RealFrac a => ClockTime -> a -> IO ()
-        display start p = getClockTime
-            >>= hPrintf stderr fmt title (floor $ p * 100 :: Int) bar
-            . showTime . flip diffClockTimes start
-            where
-                bar = let n = floor $ p * fromIntegral len in
-                          replicate n '#' ++ replicate (len - n) ' '
-        
-        showTime :: TimeDiff -> String
-        showTime elapsed = printf "%02d:%02d:%02d" hour minute second
-            where
-                minute  = tdMin elapsed
-                second  = tdSec elapsed
-                hour    = (tdYear elapsed * 365 * 24)
-                            * (tdMonth elapsed * 30)
-                            * (tdHour elapsed)
